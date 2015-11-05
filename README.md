@@ -28,10 +28,8 @@ su
 su sintez
 cd /sintez/sintez/bin/
 /usr/sfw/bin/wget http://web/iq/bin/iqPlay
-chown sintez:syn iqPlay #Если забыли выйти из под root и скачали файл из под него
 chmod 755 iqPlay
 /usr/sfw/bin/wget http://web/iq/bin/iqFlashMount
-chown sintez:syn iqFlashMount #Если забыли выйти из под root и скачали файл из под него
 chmod 755 iqFlashMount
 ~~~~~~
 * Скачать кастомную сборку dialog
@@ -39,7 +37,6 @@ chmod 755 iqFlashMount
 su sintez
 cd /sintez/sintez/bin/
 /usr/sfw/bin/wget http://web/iq/bin/dialog
-chown sintez:syn dialog #Если забыли выйти из под root и скачали файл из под него
 chmod 755 dialog
 ~~~~~~
 * Скачать файлы с хостами
@@ -48,7 +45,6 @@ su sintez
 cd /sintez/sintez/.config/itQuasar
 /usr/sfw/bin/wget http://web/iq/config/iqPlayHostsRc.txt
 /usr/sfw/bin/wget http://web/iq/config/iqPlayHostsPivp.txt
-chown sintez:syn iqPlay* #Если забыли выйти из под root и скачали файл из под него
 ~~~~~~~
 * Скачать файлы sudoers
 ~~~~~~~{bash}
