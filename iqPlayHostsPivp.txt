@@ -1,0 +1,25 @@
+sun5|PTUK-1
+sun6|PTUK-2
+sun11|ARM-12
+sun13|ARM-19 (Shtrurman ADB, kab. 19)
+sun15|ARM-16 (Nach. ZC ,kab. 18)
+sun16|ARM-6
+sun18|ARM-5
+sun17|ARM-4
+sun19|ARM-8
+sun20|ARM-11 (GOPVD)
+sun21|ARM-4 (Video)
+sun22|ARM-9
+sun23|ARM-10 (Nach. GOPVD, kab. 3)
+sun24|ARM-1 (Zam. nach. DC)
+sun26|ARM-7
+sun27|ARM-2 (Nach. DS)
+sun29|ARM-13
+sun30|ARM-16 (Zam. nach. ZC, kab. 18)
+sun41|ARM-28 (Teh. klass RC)
+sun42|ARM-29 (RPR)
+sun43|ARM-30 (RC-15)
+sun44|ARM-31 (RC-6)
+sun45|ARM-32 (RC-12)
+pivp51|GO PVD OP-1
+pivp52|GO PVD OP-2

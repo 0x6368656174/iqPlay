@@ -1,0 +1,52 @@
+#!/opt/csw/bin/bash
+SUDO=${SUDO=/opt/csw/bin/sudo}
+
+if [ $# -ne 1 ]
+then
+    resultFile=/dev/null
+else
+    resultFile=$1
+fi
+
+checkUsb ()
+{
+    usbFlash=$1
+    echo Check USB flash in $usbFlash...
+
+    if mount | grep $usbFlash
+    then
+        touch $usbFlash/checkusb
+
+        if [ $? -eq 0 ]
+        then
+            ok=1
+        fi
+
+        rm $usbFlash/checkusb
+
+        if [ $ok -eq 1 ]
+        then
+            echo Ok. Mounted in $usbFlash
+            echo $usbFlash > $resultFile
+            exit 0
+        fi
+    fi
+}
+
+ok=0
+while [ $ok -ne 1 ]
+do
+    checkUsb /rmdisk/unnamed_rmdisk
+    checkUsb /sintez/sintez/mnt/flash0
+    checkUsb /sintez/sintez/mnt/flash1
+    
+    echo Insert USB flash in other port!!!
+    echo Wait 10 seconds...
+
+    echo Remount USB...
+    sleep 10
+    $SUDO /etc/init.d/volmgt stop
+    sleep 1
+    $SUDO /etc/init.d/volmgt start
+done
+

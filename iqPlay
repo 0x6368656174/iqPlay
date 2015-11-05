@@ -1,0 +1,294 @@
+#!/opt/csw/bin/bash
+DIALOG=${DIALOG=/sintez/sintez/bin/dialog}
+DATE=${DATE=/opt/csw/gnu/date}
+FFMPEG=${FFMPEG=/opt/iq/bin/ffmpeg}
+MPLAYER=${MPLAYER=/opt/csw/bin/mplayer}
+SUDO=${SUDO=/opt/csw/bin/sudo}
+
+trap "clear" 0 1 2 5 15
+
+width=70
+height=20
+
+getFilePath ()
+{
+    local choice=`$DIALOG --stdout --title "Path to copy" --menu "Select path to copy..." 0 $width 0 1 Flash 2 sun5:/sintez/sintez/tmp 3 sun6:/sintez/sintez/tmp 4 Manual`
+    if [ "$?" -ne 0 ]
+    then
+        filePath=""
+	return
+    fi
+    
+    case $choice in
+        "1" )
+            local resultTmpFile=/sintez/sintez/tmp/flashMoutnResult
+            $DIALOG --title "Mount USB flash" --prgbox "Try to mount USB flash..." "/sintez/sintez/bin/iqFlashMount $resultTmpFile" $height $width
+            filePath=`cat $resultTmpFile`
+        ;;
+        "2" )
+            filePath="sun5:/sintez/sintez/tmp"
+        ;;
+        "3" )
+            filePath="sun6:/sintez/sintez/tmp"
+        ;;
+        "4" )
+            filePath=`$DIALOG --stdout --title "Enter path" --fselect / 12 $width`
+            if [ "$?" -ne 0 ] 
+            then
+                filePath=""
+	        return
+            fi
+        ;;
+    esac
+}
+
+selectSdvi ()
+{
+    sdviNumber=`$DIALOG --stdout --title "SDVI select" --menu "Select a SDVI..." 0 $width 0 1 "SDVI-1" 2 "SDVI-2"`
+    if [ "$?" -ne 0 ] 
+    then
+	return
+    fi
+    selectSdviAction
+}
+
+selectSdviAction ()
+{
+    local action=`$DIALOG --stdout --title "Action select" --menu "Select action..." 0 $width 0 1 "Copy"`
+    if [ "$?" -ne 0 ] 
+    then
+	return
+    fi
+    case $action in
+        "1" )
+            getFilePath
+	    if [ -z $filePath ]
+	    then
+                return
+	    fi
+
+	    local fileName="$filePath/PlayDoc.bin_$( date '+%m.%d.%y_%H-%M' )"
+	    local copyFrom="sdvi$sdviNumber:/sd/document/PlayDoc.bin"
+            $DIALOG --title "Copy file" --prgbox "Copy file from $copyFrom to $fileName..." "rcp sintez@$copyFrom $fileName" $height $width
+            $DIALOG --title "Ok" --msgbox "Copy file sdvi$sdviNumber:/sd/document/PlayDoc.bin to $fileName success." 8 $width
+        ;;
+    esac
+
+    local action=`$DIALOG --stdout --title "Go to" --menu "Select what to do..." 0 $width 0 1 "Move to main menu" 2 "Select other SDVI"`
+    if [ "$?" -ne 0 ] 
+    then
+	return
+    fi
+
+    case $action in
+        "1" )
+	    selectVideoFile
+	;;
+	"2" )
+	    selectSdvi
+	;;
+    esac
+}
+
+selectIqPlayFile ()
+{
+    while IFS=$'|' read -r -a hostRow
+    do
+        local hosts+=("${hostRow[0]}")
+        local hosts+=("${hostRow[1]}")
+    done < /sintez/sintez/.config/itQuasar/iqPlayHosts.txt
+    
+    host=`$DIALOG --stdout --title "Host" --menu "Select host..." 0 $width 0 "${hosts[@]}"`
+    if [ "$?" -ne 0 ] ;
+    then
+	return
+    fi
+    
+    local videoDate=`$DIALOG --stdout --title "Date" --calendar "Select date..." 0 0`
+    if [ "$?" -ne 0 ] ;
+    then
+	return
+    fi
+    
+    if [[ $videoDate =~ ([[:digit:]][[:digit:]])/([[:digit:]][[:digit:]])/([[:digit:]][[:digit:]][[:digit:]][[:digit:]]) ]]
+    then
+        local day=${BASH_REMATCH[1]} 
+        local mouth=${BASH_REMATCH[2]} 
+        local year=${BASH_REMATCH[3]} 
+            else
+        exit
+    fi
+    
+    local videoTime=`$DIALOG --stdout --title "Time" --timebox "Select time...\n\nIf necessary video 01:00-01:10 time should be in the range, for example 01:04." 0 0`
+    if [ "$?" -ne 0 ] ;
+    then
+	return
+    fi
+    
+    echo $videoTime
+    
+    if [[ $videoTime =~ ([[:digit:]][[:digit:]]):([[:digit:]][[:digit:]]):([[:digit:]][[:digit:]]) ]]
+    then
+        local hours=${BASH_REMATCH[1]} 
+        local minutes=${BASH_REMATCH[2]} 
+        local seconds=${BASH_REMATCH[3]} 
+    else
+        exit
+    fi
+    
+    if [ $minutes != "00" ]
+    then
+        local minutes=`echo $minutes | sed 's/0*//'`
+    fi
+    let "minutes = $minutes - $minutes % 10"
+    
+    local startDateTime=`$DATE -u '+%d.%m.%Y_%H.%M' --date="$year-$mouth-$day $hours:$minutes:00 UTC"`
+    local endDateTime=`$DATE -u '+%d.%m.%Y_%H.%M' --date="$year-$mouth-$day $hours:$minutes:00 UTC + 600 seconds"`
+    
+    local currentSecondsFromEpoch=`$DATE '+%s'` 
+    local fileSecondsFromEpoch=`$DATE '+%s' --date="$year-$mouth-$day $hours:$minutes:00"`
+    
+    let "fileAge = $currentSecondsFromEpoch - $fileSecondsFromEpoch"
+    
+    if [ $fileAge -lt 86400 ] ;
+    then
+        local needUntar=0
+        local suffix="mkv"
+    else
+        local needUntar=1
+        local suffix="mkv.tar.gz"
+    fi
+    
+    iqPlayFileName="$host"_"$startDateTime"-"$endDateTime"."$suffix"
+    selectIqPlayAction
+}
+
+selectIqPlayAction ()
+{
+    local action=`$DIALOG --stdout --title "Action select" --menu "Select action..." 0 $width 0 1 "Play" 2 "Copy"`
+    if [ "$?" -ne 0 ] 
+    then
+	return
+    fi
+    case $action in
+        "1" )
+            local tempFileName=/tmp/"$host"_"$startDateTime"-"$endDateTime"_tmp_$$
+            local downloadTempFileName="$tempFileName.$suffix"
+	    local copyFrom="$host:/sd/spyscreens/$iqPlayFileName"
+            $DIALOG --title "Copy" --prgbox "Copy file from $copyFrom to $downloadTempFileName..." "rcp sintez@$copyFrom $downloadTempFileName" 20 $width
+            if [ ! -f $downloadTempFileName ] ;
+            then
+                exit
+            fi
+            trap "rm -f $downloadTempFileName" 0 1 2 5 15
+            ls -la $downloadTempFileName
+            
+            untarTempFileName="$tempFileName.mkv"
+            if [ $needUntar -eq 1 ] ;
+            then
+                cd /tmp
+                $DIALOG --title "Unarchive" --prgbox "Unarchive file from $downloadTempFileName to $untarTempFileName..." "gunzip -c $downloadTempFileName | tar xf -" 20 $width
+                mv /tmp/"$host"_"$startDateTime"-"$endDateTime".mkv $untarTempFileName
+            fi
+            
+            if [ ! -f $untarTempFileName ] ;
+            then
+                exit
+            fi
+            trap "rm -f $untarTempFileName" 0 1 2 5 15
+            
+            convertedTempFileName="$tempFileName.avi"
+            LD_LIBRARY_PATH=/opt/csw/X11/lib:/opt/csw/lib:/opt/iq/lib:$LD_LIBRARY_PATH $DIALOG --title "Convert" --prgbox "Convert file from $untarTempFileName to $convertedTempFileName..." "$FFMPEG -i $untarTempFileName -r 25 -vcodec mpeg4 -vtag xvid -qscale:v 1 $convertedTempFileName" 20 $width
+            if [ ! -f $convertedTempFileName ] ;
+            then
+                exit
+            fi
+            trap "rm -f $convertedTempFileName" 0 1 2 5 15
+            
+            $DIALOG --title "MPLayer help" --msgbox "After you click OK, playback starts. Control playback using the folowing buttons.\n
+Basic keys: (complete list in the man page, also check input.conf)\n
+            <-  or  ->       seek backward/forward 10 seconds\n
+            down or up       seek backward/forward  1 minute\n
+            pgdown or pgup   seek backward/forward 10 minutes\n
+            < or >           step backward/forward in playlist\n
+            p or SPACE       pause movie (press any key to continue)\n
+            q or ESC         stop playing and quit program\n
+\n
+        " 0 0 
+        
+            $SUDO $MPLAYER -xy 0.5 -loop 0 lavf $convertedTempFileName
+
+            rm -f $downloadTempFileName
+            rm -f $untarTempFileName
+            rm -f $convertedTempFileName
+            $DIALOG --title "Bye;-)" --msgbox "Playback finished. All temp files removed." 8 40
+	;;
+	"2" )
+            getFilePath
+	    if [ -z $filePath ]
+	    then
+                return
+	    fi
+	    local fileName="$filePath/$iqPlayFileName"
+	    local copyFrom="$host:/sd/spyscreens/$iqPlayFileName"
+            $DIALOG --title "Copy" --prgbox "Copy file from $copyFrom to $fileName..." "rcp sintez@$copyFrom $fileName" $height $width
+            $DIALOG --title "Ok" --msgbox "Copy file from $copyFrom to $fileName success." 8 $width
+	;;
+    esac
+
+    local action=`$DIALOG --stdout --title "Go to" --menu "Select what to do..." 0 $width 0 1 "Move to main menu" 2 "Select other video file" 3 "Select other video file action"`
+    if [ "$?" -ne 0 ] 
+    then
+	return
+    fi
+
+    case $action in
+        "1" )
+	    selectVideoFile
+	;;
+	"2" )
+	    selectIqPlayFile
+	;;
+	"3" )
+	    selectIqPlayAction
+	;;
+    esac
+}
+
+selectVideoFile ()
+{
+    videoFileType=`$DIALOG --stdout --title "Video type" --menu "Select video file type..." 0 $width 0 1 "iqScreenSpy video" 2 "SDVI video" 3 "Version" 4 "EXIT"`
+    if [ "$?" -ne 0 ] 
+    then
+	exit
+    fi
+case $videoFileType in
+    "1" )
+        selectIqPlayFile
+    ;;
+    "2" )
+        selectSdvi
+    ;;
+    "3" )
+        showVersion
+    ;;
+    "4" )
+        exit
+    ;;
+esac
+}
+
+showVersion ()
+{
+    $DIALOG --title "Version" --msgbox "IqPlay version: 1.0.5.\n
+    \n
+Application author: Air Traffic Control Software \n
+                    Systems And Tools Group, \n
+                    Pavel Puchkov, 2015.
+    " 10 60 
+}
+
+while [ 1 -ne 0 ]
+do
+    selectVideoFile
+done
